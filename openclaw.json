@@ -1,0 +1,10 @@
+{
+  "name": "ai-contrarian-bot",
+  "version": "1.0.0",
+  "description": "Contrarian Trading Bot for Polymarket over CTF Exchange panic selling.",
+  "endpoint": "dist/index.js",
+  "gateway": {
+    "protocol": "websockets",
+    "commands": ["kill_switch", "manual_audit"]
+  }
+}
