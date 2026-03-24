@@ -34,7 +34,9 @@ class StrategyReflector {
                     whale_threshold: 10000,
                     panic_price_threshold: 0.25,
                     margin_of_safety: 0.10,
-                    starting_budget: 21.0
+                    starting_budget: 21.0,
+                    dry_run_mode: false,
+                    enable_deepseek: true
                 };
             }
         }

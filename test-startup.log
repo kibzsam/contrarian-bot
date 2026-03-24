@@ -1,0 +1,12 @@
+=== AI Contrarian Bot - Startup Test ===
+
+1. Building TypeScript...
+
+> ai-contrarian-bot@1.0.0 build
+> tsc
+
+
+2. Starting bot with 10-second timeout...
+test-startup.sh: line 13: timeout: command not found
+
+3. Startup test completed

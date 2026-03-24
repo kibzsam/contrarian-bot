@@ -28,6 +28,12 @@ Output a JSON with two fields:
 2. "reasoning" (a brief string explaining why).
 `;
         try {
+            // Check if API key is available
+            const apiKey = process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY;
+            if (!apiKey || apiKey.includes('your-') || apiKey === 'test') {
+                console.warn('[DeepSeekBrain] No valid API key. Using fallback probability estimation.');
+                return this.fallbackAnalysis(currentPrice, isWhaleBuying, lessonsLearned);
+            }
             const response = await this.openai.chat.completions.create({
                 model: 'deepseek-reasoner', // or gpt-4-turbo if using openai
                 messages: [{ role: 'user', content: prompt }],
@@ -44,9 +50,20 @@ Output a JSON with two fields:
             };
         }
         catch (error) {
-            console.error('LLM analysis failed:', error);
-            throw new Error('Failed to analyze probability');
+            console.warn('[DeepSeekBrain] LLM analysis failed, using fallback:', error instanceof Error ? error.message : error);
+            return this.fallbackAnalysis(currentPrice, isWhaleBuying, lessonsLearned);
         }
+    }
+    fallbackAnalysis(currentPrice, isWhaleBuying, lessonsLearned) {
+        // Simple heuristic: if whales are buying at a low price, prob is higher
+        let estimatedProb = Math.min(0.75, currentPrice + 0.25);
+        if (isWhaleBuying && currentPrice < 0.5) {
+            estimatedProb = Math.min(0.85, currentPrice + 0.4);
+        }
+        return {
+            fair_value_probability: estimatedProb,
+            reasoning: `Fallback: whale presence=${isWhaleBuying}, price=${currentPrice}. Estimated bounce probability: ${(estimatedProb * 100).toFixed(1)}%`
+        };
     }
 }
 exports.DeepSeekBrain = DeepSeekBrain;

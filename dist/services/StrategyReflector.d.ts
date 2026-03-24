@@ -10,6 +10,8 @@ export interface StrategyConfig {
     panic_price_threshold: number;
     margin_of_safety: number;
     starting_budget: number;
+    dry_run_mode?: boolean;
+    enable_deepseek?: boolean;
 }
 export interface TradeContext extends TradeResult {
     context: MarketContextEvent;

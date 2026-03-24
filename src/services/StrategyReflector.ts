@@ -14,6 +14,8 @@ export interface StrategyConfig {
   panic_price_threshold: number;
   margin_of_safety: number;
   starting_budget: number;
+  dry_run_mode?: boolean;
+  enable_deepseek?: boolean;
 }
 
 export interface TradeContext extends TradeResult {
@@ -52,7 +54,9 @@ export class StrategyReflector {
             whale_threshold: 10000,
             panic_price_threshold: 0.25,
             margin_of_safety: 0.10,
-            starting_budget: 21.0
+            starting_budget: 21.0,
+            dry_run_mode: false,
+            enable_deepseek: true
          };
       }
     }

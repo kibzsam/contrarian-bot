@@ -22,9 +22,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    networks:
-      - dokploy-network
 
-networks:
-  dokploy-network:
-    external: true
+# Note: For local testing, use default bridge network.
+# For VPS with Dokploy, uncomment networks section below:
+# networks:
+#   dokploy-network:
+#     external: true
