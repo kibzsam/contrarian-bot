@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trade {
+  id           String   @id @default(cuid())
+  marketId     String
+  marketName   String
+  orderType    String   // "YES" or "NO"
+  entryPrice   Float
+  exitPrice    Float?
+  quantity     Float
+  pnl          Float?
+  profitLoss   Float?   // Calculated: (exitPrice - entryPrice) * quantity
+  status       String   // "OPEN" | "CLOSED" | "CANCELED"
+  reasoning    String   // LLM reasoning for the trade
+  executedAt   DateTime @default(now())
+  closedAt     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([marketId])
+  @@index([executedAt])
+  @@index([status])
+}
+
+model BacktestResult {
+  id               String   @id @default(cuid())
+  name             String
+  strategyVersion  String
+  totalTrades      Int
+  winCount         Int
+  lossCount        Int
+  winRate          Float    // winCount / totalTrades
+  totalPnL         Float
+  maxDrawdown      Float
+  sharpeRatio      Float?
+  sortinoRatio     Float?
+  profitFactor     Float?   // (sum of wins) / (sum of losses)
+  avgWin           Float?
+  avgLoss          Float?
+  startDate        DateTime
+  endDate          DateTime
+  parameters       String   // JSON string of strategy parameters
+  results          String   // JSON string of detailed results
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model MarketOpportunity {
+  id                 String   @id @default(cuid())
+  marketId           String   @unique
+  marketName         String
+  category           String
+  currentOdds        Float    // YES token price (0-1)
+  liquidity          Float    // Total liquidity in USD
+  volume24h          Float
+  spread             Float    // Bid-ask spread
+  timeToResolution   Int      // Days until resolution
+  crowdSentiment     Float    // 0-1 indicating crowd bullishness
+  contraryScore      Float    // 0-1 indicating contrarian opportunity (1 = best)
+  whaleActivity      String   // "ACCUMULATING" | "DISTRIBUTING" | "NEUTRAL"
+  recommendation     String   // "BUY_YES" | "BUY_NO" | "AVOID"
+  reasoning          String   // LLM reasoning for recommendation
+  lastUpdated        DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([marketId])
+  @@index([contraryScore])
+  @@index([category])
+  @@index([lastUpdated])
+}
+
+model BankrollSnapshot {
+  id                 String   @id @default(cuid())
+  totalBankroll      Float
+  availableBalance   Float
+  usedInTrades       Float   // Sum of active trade notional
+  dailyPnL           Float
+  cumulativePnL      Float
+  winRateToday       Float
+  snapshotAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  @@index([snapshotAt])
+}

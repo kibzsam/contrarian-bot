@@ -5,8 +5,13 @@ import { DeepSeekBrain } from './services/DeepSeekBrain';
 import { BankrollManager, TradeResult } from './services/BankrollManager';
 import { StrategyReflector } from './services/StrategyReflector';
 import { telegramNotifier } from './services/TelegramNotifier';
+import { initializeDatabase } from './db/database';
+import dashboardRoutes from './routes/dashboard';
+import marketRoutes from './routes/markets';
+import backtestRoutes from './routes/backtest';
 
 dotenv.config();
+
 
 // Assuming OpenClaw interfaces from a polybased SDK or equivalent
 export interface OpenClawSkill {
@@ -75,11 +80,33 @@ class MainOrchestrator {
 
     this.setupGracefulShutdown();
     
+    // Initialize database
+    await initializeDatabase();
+    
     const app = express();
+    
+    // Middleware
+    app.use(express.json());
+    app.use(express.static('../dashboard/dist'));
+    
+    // API Routes
+    app.use('/api/dashboard', dashboardRoutes);
+    app.use('/api/markets', marketRoutes);
+    app.use('/api/backtest', backtestRoutes);
+    
+    // Health check
     app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+    
+    // Fallback to dashboard for SPA routing
+    app.get('*', (req, res) => {
+      res.sendFile('../dashboard/dist/index.html', { root: __dirname });
+    });
+    
     const port = process.env.PORT || 3000;
     app.listen(port, () => {
-      console.log(`Health check server listening on port ${port}`);
+      console.log(`🚀 Server running on http://localhost:${port}`);
+      console.log(`📊 Dashboard: http://localhost:${port}`);
+      console.log(`🏥 Health check: http://localhost:${port}/health`);
     });
 
     await telegramNotifier.notifyBotStarted();
