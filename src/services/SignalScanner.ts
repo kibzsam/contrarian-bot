@@ -8,12 +8,18 @@ export interface MarketContextEvent {
   currentPrice: number;
   recentVolume: number;
   isWhaleBuying: boolean;
+  priceDropPercent?: number;
 }
 
 export interface ScannerConfig {
   whaleThreshold: number;
   panicPriceThreshold: number;
   wssUrl?: string;
+}
+
+interface PricePoint {
+  price: number;
+  timestamp: number;
 }
 
 export class SignalScanner extends EventEmitter {
@@ -26,8 +32,13 @@ export class SignalScanner extends EventEmitter {
   private whaleThreshold: number;
   private panicPriceThreshold: number;
   
+  // Track price history for time-windowed analysis (60 minutes)
+  private priceHistory: Map<string, PricePoint[]> = new Map();
+  private readonly PRICE_HISTORY_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
+  private readonly PRICE_DROP_THRESHOLD = 0.10; // 10% drop
+  
   // Dynamically fetched tokens on startup
-  private monitoredTokens: string[] = []; 
+  private monitoredTokens: string[] = [];
 
   constructor(config: ScannerConfig) {
     super();
@@ -147,13 +158,22 @@ export class SignalScanner extends EventEmitter {
        
        const isWhaleBuying = simulatedTradeVolume > this.whaleThreshold && newPrice > 0.10;
 
+       // Track price history for time-windowed analysis
+       this.trackPriceHistory(tokenId, newPrice);
+       
+       // Check for price drop >10% in <60 minutes
+       const priceDropPercent = this.calculatePriceDropPercent(tokenId);
+       const hasSignificantDrop = priceDropPercent !== null && priceDropPercent >= this.PRICE_DROP_THRESHOLD;
+
        // If the price is low (below panic threshold) AND we see a whale stepping in
-       if (newPrice < this.panicPriceThreshold && isWhaleBuying) {
+       // OR if there's a significant price drop (>10% in <60m) with whale activity
+       if ((newPrice < this.panicPriceThreshold && isWhaleBuying) || (hasSignificantDrop && isWhaleBuying)) {
           const contextEvent: MarketContextEvent = {
              tokenId: tokenId,
              currentPrice: newPrice,
              recentVolume: this.volumeTracker[tokenId],
-             isWhaleBuying: isWhaleBuying
+             isWhaleBuying: isWhaleBuying,
+             priceDropPercent: priceDropPercent || undefined,
           };
           this.emit('market_opportunity', contextEvent);
           
@@ -161,6 +181,41 @@ export class SignalScanner extends EventEmitter {
           this.volumeTracker[tokenId] = 0;
        }
     }
+  }
+
+  /**
+   * Track price history for a token
+   */
+  private trackPriceHistory(tokenId: string, price: number): void {
+    const now = Date.now();
+    const history = this.priceHistory.get(tokenId) || [];
+    
+    // Add new price point
+    history.push({ price, timestamp: now });
+    
+    // Remove old price points (older than 60 minutes)
+    const cutoff = now - this.PRICE_HISTORY_WINDOW_MS;
+    const filteredHistory = history.filter(point => point.timestamp > cutoff);
+    
+    this.priceHistory.set(tokenId, filteredHistory);
+  }
+
+  /**
+   * Calculate price drop percentage over the last 60 minutes
+   * Returns null if insufficient data
+   */
+  private calculatePriceDropPercent(tokenId: string): number | null {
+    const history = this.priceHistory.get(tokenId);
+    if (!history || history.length < 2) return null;
+    
+    // Get the oldest price in the window (first element)
+    const oldestPrice = history[0].price;
+    const newestPrice = history[history.length - 1].price;
+    
+    if (oldestPrice <= 0) return null;
+    
+    const dropPercent = (oldestPrice - newestPrice) / oldestPrice;
+    return dropPercent;
   }
 
   private clearPing() {

@@ -33,8 +33,9 @@ router.get('/opportunities', async (req: Request, res: Response) => {
 // Get single market opportunity
 router.get('/opportunities/:marketId', async (req: Request, res: Response) => {
   try {
+    const marketId = Array.isArray(req.params.marketId) ? req.params.marketId[0] : req.params.marketId;
     const opportunity = await db.marketOpportunity.findUnique({
-      where: { marketId: req.params.marketId },
+      where: { marketId },
     });
 
     if (!opportunity) {

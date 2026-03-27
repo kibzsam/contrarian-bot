@@ -36,6 +36,7 @@ class MainOrchestrator {
   private reflector: StrategyReflector;
   private gateway: OpenClawGateway;
   private marginOfSafety: number = 0.10;
+  private takeProfitMonitorInterval: NodeJS.Timeout | null = null;
   
   // Now tracks trades with context to feed into StrategyReflector
   private tradeHistory: (TradeResult & { context: MarketContextEvent, predictedProbability: number })[] = [];
@@ -78,6 +79,9 @@ class MainOrchestrator {
     });
     await this.scanner.start();
 
+    // 4. Start take-profit monitoring (check every 30 seconds)
+    this.startTakeProfitMonitoring();
+
     this.setupGracefulShutdown();
     
     // Initialize database
@@ -110,6 +114,17 @@ class MainOrchestrator {
     });
 
     await telegramNotifier.notifyBotStarted();
+  }
+
+  private startTakeProfitMonitoring() {
+    console.log('[TAKE-PROFIT] Starting take-profit monitoring (every 30s)...');
+    this.takeProfitMonitorInterval = setInterval(async () => {
+      try {
+        await this.bankroll.monitorTakeProfit();
+      } catch (error) {
+        console.error('[TAKE-PROFIT] Error during monitoring:', error);
+      }
+    }, 30000); // Check every 30 seconds
   }
 
   private async handleMarketOpportunity(event: MarketContextEvent) {
@@ -178,6 +193,9 @@ class MainOrchestrator {
     const shutdown = async () => {
       console.log('\nReceived kill signal, shutting down gracefully...');
       this.scanner.stop();
+      if (this.takeProfitMonitorInterval) {
+        clearInterval(this.takeProfitMonitorInterval);
+      }
       await telegramNotifier.notifyBotStopped();
       console.log('Cleanup complete. Exiting process.');
       process.exit(0);

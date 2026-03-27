@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import BacktestList from '../components/BacktestList';
 import BacktestDetail from '../components/BacktestDetail';
 

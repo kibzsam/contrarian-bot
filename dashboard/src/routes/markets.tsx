@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import MarketSearch from '../components/MarketSearch';
 import OpportunitiesList from '../components/OpportunitiesList';
 

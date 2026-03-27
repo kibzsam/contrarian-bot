@@ -77,8 +77,9 @@ router.get('/trades', async (req: Request, res: Response) => {
 // Get single trade with full LLM reasoning
 router.get('/trades/:id', async (req: Request, res: Response) => {
   try {
+    const tradeId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const trade = await db.trade.findUnique({
-      where: { id: req.params.id },
+      where: { id: tradeId },
     });
 
     if (!trade) {
@@ -126,8 +127,9 @@ router.post('/trades', async (req: Request, res: Response) => {
 router.patch('/trades/:id/close', async (req: Request, res: Response) => {
   try {
     const { exitPrice } = req.body;
+    const tradeId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const trade = await db.trade.findUnique({
-      where: { id: req.params.id },
+      where: { id: tradeId },
     });
 
     if (!trade) {
@@ -137,7 +139,7 @@ router.patch('/trades/:id/close', async (req: Request, res: Response) => {
     const pnl = (exitPrice - trade.entryPrice) * trade.quantity;
 
     const updatedTrade = await db.trade.update({
-      where: { id: req.params.id },
+      where: { id: tradeId },
       data: {
         exitPrice,
         status: 'CLOSED',

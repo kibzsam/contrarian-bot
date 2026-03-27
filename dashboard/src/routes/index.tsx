@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import React from 'react';
 import DashboardStats from '../components/DashboardStats';
 import RecentTrades from '../components/RecentTrades';
 

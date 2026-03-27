@@ -1,0 +1,5 @@
+import { PrismaClient } from '@prisma/client';
+export declare const db: PrismaClient<import(".prisma/client").Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
+export declare function initializeDatabase(): Promise<void>;
+export declare function closeDatabaseConnection(): Promise<void>;
+//# sourceMappingURL=database.d.ts.map

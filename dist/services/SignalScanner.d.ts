@@ -4,6 +4,7 @@ export interface MarketContextEvent {
     currentPrice: number;
     recentVolume: number;
     isWhaleBuying: boolean;
+    priceDropPercent?: number;
 }
 export interface ScannerConfig {
     whaleThreshold: number;
@@ -17,6 +18,9 @@ export declare class SignalScanner extends EventEmitter {
     private volumeTracker;
     private whaleThreshold;
     private panicPriceThreshold;
+    private priceHistory;
+    private readonly PRICE_HISTORY_WINDOW_MS;
+    private readonly PRICE_DROP_THRESHOLD;
     private monitoredTokens;
     constructor(config: ScannerConfig);
     start(): Promise<void>;
@@ -24,6 +28,15 @@ export declare class SignalScanner extends EventEmitter {
     private connect;
     private subscribeToMarkets;
     private handleMessage;
+    /**
+     * Track price history for a token
+     */
+    private trackPriceHistory;
+    /**
+     * Calculate price drop percentage over the last 60 minutes
+     * Returns null if insufficient data
+     */
+    private calculatePriceDropPercent;
     private clearPing;
     stop(): void;
 }

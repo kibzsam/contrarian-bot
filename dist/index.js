@@ -11,6 +11,10 @@ const DeepSeekBrain_1 = require("./services/DeepSeekBrain");
 const BankrollManager_1 = require("./services/BankrollManager");
 const StrategyReflector_1 = require("./services/StrategyReflector");
 const TelegramNotifier_1 = require("./services/TelegramNotifier");
+const database_1 = require("./db/database");
+const dashboard_1 = __importDefault(require("./routes/dashboard"));
+const markets_1 = __importDefault(require("./routes/markets"));
+const backtest_1 = __importDefault(require("./routes/backtest"));
 dotenv_1.default.config();
 class OpenClawGateway {
     registerSkill(skill) {
@@ -24,6 +28,7 @@ exports.OpenClawGateway = OpenClawGateway;
 class MainOrchestrator {
     constructor() {
         this.marginOfSafety = 0.10;
+        this.takeProfitMonitorInterval = null;
         // Now tracks trades with context to feed into StrategyReflector
         this.tradeHistory = [];
         this.brain = new DeepSeekBrain_1.DeepSeekBrain();
@@ -56,14 +61,43 @@ class MainOrchestrator {
             await this.handleMarketOpportunity(event);
         });
         await this.scanner.start();
+        // 4. Start take-profit monitoring (check every 30 seconds)
+        this.startTakeProfitMonitoring();
         this.setupGracefulShutdown();
+        // Initialize database
+        await (0, database_1.initializeDatabase)();
         const app = (0, express_1.default)();
+        // Middleware
+        app.use(express_1.default.json());
+        app.use(express_1.default.static('../dashboard/dist'));
+        // API Routes
+        app.use('/api/dashboard', dashboard_1.default);
+        app.use('/api/markets', markets_1.default);
+        app.use('/api/backtest', backtest_1.default);
+        // Health check
         app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+        // Fallback to dashboard for SPA routing
+        app.get('*', (req, res) => {
+            res.sendFile('../dashboard/dist/index.html', { root: __dirname });
+        });
         const port = process.env.PORT || 3000;
         app.listen(port, () => {
-            console.log(`Health check server listening on port ${port}`);
+            console.log(`🚀 Server running on http://localhost:${port}`);
+            console.log(`📊 Dashboard: http://localhost:${port}`);
+            console.log(`🏥 Health check: http://localhost:${port}/health`);
         });
         await TelegramNotifier_1.telegramNotifier.notifyBotStarted();
+    }
+    startTakeProfitMonitoring() {
+        console.log('[TAKE-PROFIT] Starting take-profit monitoring (every 30s)...');
+        this.takeProfitMonitorInterval = setInterval(async () => {
+            try {
+                await this.bankroll.monitorTakeProfit();
+            }
+            catch (error) {
+                console.error('[TAKE-PROFIT] Error during monitoring:', error);
+            }
+        }, 30000); // Check every 30 seconds
     }
     async handleMarketOpportunity(event) {
         console.log(`[EVENT] Market opportunity detected for ${event.tokenId} at $${event.currentPrice}. Whale Buying: ${event.isWhaleBuying}`);
@@ -108,6 +142,9 @@ class MainOrchestrator {
         const shutdown = async () => {
             console.log('\nReceived kill signal, shutting down gracefully...');
             this.scanner.stop();
+            if (this.takeProfitMonitorInterval) {
+                clearInterval(this.takeProfitMonitorInterval);
+            }
             await TelegramNotifier_1.telegramNotifier.notifyBotStopped();
             console.log('Cleanup complete. Exiting process.');
             process.exit(0);

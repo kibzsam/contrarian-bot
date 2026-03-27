@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { RouterProvider, createRouter, RootRoute, Route } from '@tanstack/react-router';
+import { RouterProvider, createRouter, RootRoute, Route, Outlet } from '@tanstack/react-router';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import './index.css';
 
@@ -23,7 +23,7 @@ const queryClient = new QueryClient({
 const rootRoute = new RootRoute({
   component: () => (
     <Layout>
-      <RootRoute.Outlet />
+      <Outlet />
     </Layout>
   ),
 });

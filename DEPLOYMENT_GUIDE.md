@@ -499,6 +499,145 @@ Strategy config and lessons persist in:
 - **Local:** `src/config/strategy_config.json`, `src/config/strategy_lessons.json`
 - **Docker:** `/app/data/` volume mounted
 
+---
+
+## UFW Firewall Security Guide
+
+### Overview
+
+UFW (Uncomplicated Firewall) is used to restrict access to your VPS and protect the AI Contrarian Bot from unauthorized access.
+
+### Initial Setup
+
+The `setup-vps.sh` script automatically configures UFW. To manually configure:
+
+```bash
+# Enable UFW
+sudo ufw enable
+
+# Set default policies
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Allow SSH (port 22)
+sudo ufw allow ssh
+
+# Allow bot API (port 3000)
+sudo ufw allow 3000/tcp
+
+# Allow OpenClaw Gateway (port 18789)
+sudo ufw allow 18789/tcp
+
+# Allow dashboard (port 5173)
+sudo ufw allow 5173/tcp
+
+# Reload firewall
+sudo ufw reload
+```
+
+### Verify Firewall Status
+
+```bash
+# Check status
+sudo ufw status verbose
+
+# Expected output:
+# Status: active
+# Logging: on (low)
+# Default: deny (incoming), allow (outgoing), disabled (routed)
+#
+# To                         Action      From
+# --                         ------      ----
+# 22/tcp                     ALLOW IN    Anywhere
+# 3000/tcp                   ALLOW IN    Anywhere
+# 18789/tcp                  ALLOW IN    Anywhere
+# 5173/tcp                   ALLOW IN    Anywhere
+```
+
+### Restrict Access by IP (Recommended)
+
+For enhanced security, restrict access to specific IP addresses:
+
+```bash
+# Allow only your IP address
+sudo ufw allow from YOUR_IP_ADDRESS to any port 3000
+sudo ufw allow from YOUR_IP_ADDRESS to any port 18789
+sudo ufw allow from YOUR_IP_ADDRESS to any port 5173
+
+# Allow SSH only from your IP
+sudo ufw allow from YOUR_IP_ADDRESS to any port 22
+
+# Deny all other access to these ports
+sudo ufw deny 3000
+sudo ufw deny 18789
+sudo ufw deny 5173
+```
+
+### Common UFW Commands
+
+```bash
+# Check status
+sudo ufw status
+
+# Check status with numbered rules
+sudo ufw status numbered
+
+# Allow a specific port
+sudo ufw allow 8080/tcp
+
+# Deny a specific port
+sudo ufw deny 8080/tcp
+
+# Allow from specific IP
+sudo ufw allow from 192.168.1.100
+
+# Delete a rule by number
+sudo ufw delete 3
+
+# Delete a rule by specification
+sudo ufw delete allow 8080/tcp
+
+# Disable firewall
+sudo ufw disable
+
+# Reset firewall (removes all rules)
+sudo ufw reset
+```
+
+### Security Best Practices
+
+1. **Always allow SSH first** before enabling UFW to avoid lockout
+2. **Restrict by IP** when possible, especially for production
+3. **Use strong passwords** for SSH authentication
+4. **Enable fail2ban** to prevent brute force attacks:
+   ```bash
+   sudo apt-get install fail2ban
+   sudo systemctl enable fail2ban
+   sudo systemctl start fail2ban
+   ```
+5. **Regularly review logs**:
+   ```bash
+   sudo ufw status verbose
+   sudo tail -f /var/log/ufw.log
+   ```
+
+### Troubleshooting
+
+**Locked out of SSH?**
+- Access your VPS via console (Contabo provides web console)
+- Disable UFW: `sudo ufw disable`
+- Reconfigure rules and re-enable
+
+**Port not accessible?**
+- Check if port is allowed: `sudo ufw status`
+- Check if service is running: `sudo netstat -tulpn | grep PORT`
+- Check application logs: `pm2 logs` or `docker logs`
+
+**Firewall not starting?**
+- Check UFW status: `sudo ufw status`
+- Check for conflicts: `sudo iptables -L`
+- Reset UFW: `sudo ufw reset` and reconfigure
+
 ### Health Checks
 
 ```bash

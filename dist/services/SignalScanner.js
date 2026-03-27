@@ -14,6 +14,10 @@ class SignalScanner extends events_1.EventEmitter {
         this.pingInterval = null;
         // Track volume for tokens
         this.volumeTracker = {};
+        // Track price history for time-windowed analysis (60 minutes)
+        this.priceHistory = new Map();
+        this.PRICE_HISTORY_WINDOW_MS = 60 * 60 * 1000; // 60 minutes
+        this.PRICE_DROP_THRESHOLD = 0.10; // 10% drop
         // Dynamically fetched tokens on startup
         this.monitoredTokens = [];
         this.whaleThreshold = config.whaleThreshold;
@@ -114,19 +118,55 @@ class SignalScanner extends events_1.EventEmitter {
             const simulatedTradeVolume = Math.random() * 15000;
             this.volumeTracker[tokenId] = (this.volumeTracker[tokenId] || 0) + simulatedTradeVolume;
             const isWhaleBuying = simulatedTradeVolume > this.whaleThreshold && newPrice > 0.10;
+            // Track price history for time-windowed analysis
+            this.trackPriceHistory(tokenId, newPrice);
+            // Check for price drop >10% in <60 minutes
+            const priceDropPercent = this.calculatePriceDropPercent(tokenId);
+            const hasSignificantDrop = priceDropPercent !== null && priceDropPercent >= this.PRICE_DROP_THRESHOLD;
             // If the price is low (below panic threshold) AND we see a whale stepping in
-            if (newPrice < this.panicPriceThreshold && isWhaleBuying) {
+            // OR if there's a significant price drop (>10% in <60m) with whale activity
+            if ((newPrice < this.panicPriceThreshold && isWhaleBuying) || (hasSignificantDrop && isWhaleBuying)) {
                 const contextEvent = {
                     tokenId: tokenId,
                     currentPrice: newPrice,
                     recentVolume: this.volumeTracker[tokenId],
-                    isWhaleBuying: isWhaleBuying
+                    isWhaleBuying: isWhaleBuying,
+                    priceDropPercent: priceDropPercent || undefined,
                 };
                 this.emit('market_opportunity', contextEvent);
                 // Reset tracker after emitting to avoid spam
                 this.volumeTracker[tokenId] = 0;
             }
         }
+    }
+    /**
+     * Track price history for a token
+     */
+    trackPriceHistory(tokenId, price) {
+        const now = Date.now();
+        const history = this.priceHistory.get(tokenId) || [];
+        // Add new price point
+        history.push({ price, timestamp: now });
+        // Remove old price points (older than 60 minutes)
+        const cutoff = now - this.PRICE_HISTORY_WINDOW_MS;
+        const filteredHistory = history.filter(point => point.timestamp > cutoff);
+        this.priceHistory.set(tokenId, filteredHistory);
+    }
+    /**
+     * Calculate price drop percentage over the last 60 minutes
+     * Returns null if insufficient data
+     */
+    calculatePriceDropPercent(tokenId) {
+        const history = this.priceHistory.get(tokenId);
+        if (!history || history.length < 2)
+            return null;
+        // Get the oldest price in the window (first element)
+        const oldestPrice = history[0].price;
+        const newestPrice = history[history.length - 1].price;
+        if (oldestPrice <= 0)
+            return null;
+        const dropPercent = (oldestPrice - newestPrice) / oldestPrice;
+        return dropPercent;
     }
     clearPing() {
         if (this.pingInterval) {
